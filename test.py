@@ -1,0 +1,1 @@
+# test accuracy of ANN using MNIST test dataset

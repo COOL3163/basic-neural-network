@@ -1,0 +1,1 @@
+# predict user-drawn digits using trained ANN model on a Tkinter canvas
