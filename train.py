@@ -1,3 +1,5 @@
+# Training
+
 import numpy as np
 import pickle
 
@@ -13,6 +15,12 @@ def relu(x):
     Use RelU for this ANN
     """
     return np.maximum(0, x)
+
+def relu_derivative(x):
+    """
+    Derivative of ReLU activation function
+    """
+    return np.where(x > 0, 1, 0) #  1 when x > 0 else 0, vectorized
 
 def softmax(z):
     """
@@ -69,12 +77,35 @@ class NeuralNetwork:
         """
         Backpropagation algorithm and weight update
         """
-        pass
+        size = x.shape[0] # batch size
+        delta = self.activations[-1] - y.T # error at output 
+        nabla_b = [np.zeros(b.shape) for b in self.biases] # gradient for biases
+        nabla_w = [np.zeros(w.shape) for w in self.weights] # gradient for weights
+
+        # output layer gradients
+        nabla_b[-1] = np.sum(delta, axis=1, keepdims=True)
+        nabla_w[-1] = np.dot(delta, self.activations[-2].T)
+
+        # backpropagate through hidden layers
+        for l in range(2, self.num_layers): # start from second last layer and go backwards 
+            z = self.z_values[-l]
+            derivative = relu_derivative(z) # derivative of activation function
+            delta = np.dot(self.weights[-l + 1].T, delta) * derivative # backpropagate the error i.e. update delta
+            nabla_b[-l] = np.sum(delta, axis=1, keepdims=True)
+            nabla_w[-l] = np.dot(delta, self.activations[-l - 1].T)
+
+        # update weights and biases using gradient descent
+        for l in range(self.num_layers - 1, 0, -1): # go backwards
+            idx = l - 1  # weight/bias index for layer l 
+            self.weights[idx] -= (learning_rate / size) * nabla_w[idx]
+            self.biases[idx]  -= (learning_rate / size) * nabla_b[idx]
+
 
     def train(self, features, targets, learning_rate, num_iterations, batch_size):
         """
         Train the neural network using mini-batch gradient descent
         """
+        # TODO: combine forward and backward for mini-batch sgd
         pass
 
     def save(self, path):
