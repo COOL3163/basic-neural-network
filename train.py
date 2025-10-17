@@ -2,6 +2,7 @@
 
 import numpy as np
 import pickle
+from time import perf_counter
 
 def sigmoid(x):
     """
@@ -30,6 +31,12 @@ def softmax(z):
     exp_z = np.exp(z - max_z)
     return exp_z / np.sum(exp_z, axis=0, keepdims=True)
 
+def one_hot_encode(targets, num_classes=10):
+    """
+    One-hot encode the labels (thats how the output layer is structured)
+    """
+    return np.eye(num_classes)[targets] # targets is y
+
 class NeuralNetwork:
     def __init__(self, sizes):
         """
@@ -47,8 +54,6 @@ class NeuralNetwork:
             self.weights.append(np.random.randn(y, x) * np.sqrt(2 / x)) # Kaiming/He initialization
             self.biases.append(np.zeros((y, 1))) # all zeros
             
-        
-
     def forward(self, x):
         """
         Do a forward pass through the network
@@ -100,19 +105,50 @@ class NeuralNetwork:
             self.weights[idx] -= (learning_rate / size) * nabla_w[idx]
             self.biases[idx]  -= (learning_rate / size) * nabla_b[idx]
 
-
     def train(self, features, targets, learning_rate, num_iterations, batch_size):
         """
         Train the neural network using mini-batch gradient descent
         """
-        # TODO: combine forward and backward for mini-batch sgd
-        pass
+        num_samples = features.shape[0]
+        targets_oh = one_hot_encode(targets, num_classes=self.sizes[-1]) # one-hot encode targets
+
+        for epoch in range(num_iterations + 1):
+            start_time = perf_counter() # start time for epoch
+            loss = 0.0 # float
+
+            # shuffle data
+            permutation = np.random.permutation(num_samples) # ensure target and features are shuffled the same way
+            features_shuffled = features[permutation]
+            targets_shuffled = targets_oh[permutation]
+
+            # process mini-batches
+            for start_idx in range(0, num_samples, batch_size):
+                end_idx = start_idx + batch_size # range for mini-batch
+                x_batch = features_shuffled[start_idx:end_idx] # features
+                y_batch = targets_shuffled[start_idx:end_idx] # targets
+
+                # forward and backward propagation
+                self.forward(x_batch)
+                self.backward(x_batch, y_batch, learning_rate)
+
+                # loss
+                loss -= np.sum(y_batch.T * np.log(self.activations[-1] + 1e-8)) # cross-entropy loss
+                # 1e-8 to avoid log(0)
+
+            loss = loss / num_samples # average loss
+
+            # debug info
+            print(f"Epoch {epoch}: Loss = {loss:.4f}, Time = {perf_counter() - start_time:.2f}s")
 
     def save(self, path):
         """
         Save the neural network to a file using pickle
         """
-        model = {} # dictionary for parameters
+        model = {
+            "sizes": self.sizes,
+            "weights": self.weights,
+            "biases": self.biases
+        } # dictionary for parameters
 
         with open(path, 'wb') as f:
             pickle.dump(model, f) # pickle because can directly save python objects ie. no need to convert
