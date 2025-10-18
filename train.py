@@ -105,14 +105,14 @@ class NeuralNetwork:
             self.weights[idx] -= (learning_rate / size) * nabla_w[idx]
             self.biases[idx]  -= (learning_rate / size) * nabla_b[idx]
 
-    def train(self, features, targets, learning_rate, num_iterations, batch_size):
+    def train(self, features, targets, learning_rate, num_iterations, batch_size, epsilon=1e-8):
         """
         Train the neural network using mini-batch gradient descent
         """
         num_samples = features.shape[0]
         targets_oh = one_hot_encode(targets, num_classes=self.sizes[-1]) # one-hot encode targets
 
-        for epoch in range(num_iterations + 1):
+        for epoch in range(num_iterations):
             start_time = perf_counter() # start time for epoch
             loss = 0.0 # float
 
@@ -132,8 +132,8 @@ class NeuralNetwork:
                 self.backward(x_batch, y_batch, learning_rate)
 
                 # loss
-                loss -= np.sum(y_batch.T * np.log(self.activations[-1] + 1e-8)) # cross-entropy loss
-                # 1e-8 to avoid log(0)
+                preds = np.clip(self.activations[-1], epsilon, 1 - epsilon) # avoid log(0)
+                loss -= np.sum(y_batch.T * np.log(preds)) # cross-entropy loss
 
             loss = loss / num_samples # average loss
 
