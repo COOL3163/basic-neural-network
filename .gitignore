@@ -209,3 +209,6 @@ __marimo__/
 # macOS
 .DS_Store
 .DS_Store?
+
+# ignore data files, use load_data.py to regenerate
+data/
