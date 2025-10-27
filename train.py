@@ -37,6 +37,16 @@ def one_hot_encode(targets, num_classes=10):
     """
     return np.eye(num_classes)[targets] # targets is y
 
+def load_data(path):
+    """Load MNIST data from CSV"""
+    X, y = [], []
+    with open(path, "r") as f:
+        for line in f:
+            row = line.strip().split(",")
+            y.append(int(row[0]))
+            X.append([float(i) for i in row[1:]])
+    return np.array(X, dtype=np.float32), np.array(y, dtype=np.int32)
+
 class NeuralNetwork:
     def __init__(self, sizes):
         """
@@ -154,9 +164,19 @@ class NeuralNetwork:
             pickle.dump(model, f) # pickle because can directly save python objects ie. no need to convert
 
 if __name__ == "__main__":
-    sizes = [] # layer size
-    nn = NeuralNetwork(sizes) # initialize the neural network
-    
+    print('loading data')
+    features, targets = load_data("data/mnist_train.csv") # load training data
+    print(f"laded {features.shape[0]} samples with {features.shape[1]} features each.")
 
+
+    sizes = [features.shape[1], 512, 512, 10] # layer size
+    learning_rate = 0.01
+    num_iterations = 256
+    batch_size = 64
+
+    print('training model')
+    nn = NeuralNetwork(sizes) # initialize the neural network
+    nn.train(features, targets, learning_rate, num_iterations, batch_size=batch_size) # train the model
+    
     nn.save('model.pkl') # save the model
 
