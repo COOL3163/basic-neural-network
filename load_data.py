@@ -11,6 +11,20 @@ y = mnist.target.astype(int).values
 # Binarize images (threshold at 150) 
 X_bin = (X > 150).astype(np.float32)
 
+def shift_image(image, dx, dy):
+    """
+    simple image shifting function
+    TODO use library funciton instead for performance 
+    """
+    shifted_image = np.zeros_like(image)
+    for x in range(28):
+        for y in range(28):
+            new_x = x + dx
+            new_y = y + dy
+            if 0 <= new_x < 28 and 0 <= new_y < 28:
+                shifted_image[new_x, new_y] = image[x, y]
+    return shifted_image
+
 # Split: train 60k, test 10k
 X_train = X_bin[:60000]
 y_train = y[:60000]
