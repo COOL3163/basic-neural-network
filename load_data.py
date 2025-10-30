@@ -2,6 +2,7 @@ import os
 import csv
 import numpy as np
 from sklearn.datasets import fetch_openml
+from scipy.ndimage import shift
 
 # download MNist
 mnist = fetch_openml('mnist_784', version=1)
@@ -11,23 +12,33 @@ y = mnist.target.astype(int).values
 # Binarize images (threshold at 150) 
 X_bin = (X > 150).astype(np.float32)
 
-def shift_image(image, dx, dy):
-    """
-    simple image shifting function
-    TODO use library funciton instead for performance 
-    """
-    shifted_image = np.zeros_like(image)
-    for x in range(28):
-        for y in range(28):
-            new_x = x + dx
-            new_y = y + dy
-            if 0 <= new_x < 28 and 0 <= new_y < 28:
-                shifted_image[new_x, new_y] = image[x, y]
-    return shifted_image
+def random_shift_image(image, max_shift=2):
+    image = image.reshape(28, 28)
+    shift_x = np.random.randint(-max_shift, max_shift + 1)
+    shift_y = np.random.randint(-max_shift, max_shift + 1)
+    shifted_image = shift(image, shift=[shift_x, shift_y], mode='constant', cval=0)
+    return shifted_image.flatten()
+    
 
 # Split: train 60k, test 10k
 X_train = X_bin[:60000]
 y_train = y[:60000]
+
+print("start shifting")
+X_shifted = []
+y_shifted = []
+X_shifted.extend(X_train)
+y_shifted.extend(y_train)
+for i in range(4):
+    for j, (image, label) in enumerate(zip(X_train, y_train)):
+        shifted_image = random_shift_image(image)
+        X_shifted.append(shifted_image)
+        y_shifted.append(label)
+
+X_train = np.array(X_shifted)
+y_train = np.array(y_shifted)
+print("done shifting")
+
 
 X_test = X_bin[60000:70000]
 y_test = y[60000:70000]
