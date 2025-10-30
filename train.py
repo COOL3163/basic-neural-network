@@ -117,11 +117,11 @@ class NeuralNetwork:
             nabla_b[-l] = np.sum(delta, axis=1, keepdims=True)
             nabla_w[-l] = np.dot(delta, self.activations[-l - 1].T)
 
-        # update weights and biases using gradient descent
-        for l in range(self.num_layers - 1, 0, -1): # go backwards
-            idx = l - 1  # weight/bias index for layer l 
-            self.weights[idx] -= (learning_rate / size) * nabla_w[idx]
-            self.biases[idx]  -= (learning_rate / size) * nabla_b[idx]
+        # # update weights and biases using gradient descent
+        # for l in range(self.num_layers - 1, 0, -1): # go backwards
+        #     idx = l - 1  # weight/bias index for layer l 
+        #     self.weights[idx] -= (learning_rate / size) * nabla_w[idx]
+        #     self.biases[idx]  -= (learning_rate / size) * nabla_b[idx]
 
         beta1 = 0.9
         beta2 = 0.999
@@ -156,7 +156,7 @@ class NeuralNetwork:
         Train the neural network using mini-batch gradient descent
         """
         num_samples = features.shape[0]
-        targets_oh = one_hot_encode(targets, num_classes=self.sizes[-1]) # one-hot encode targets
+        targets_oh = one_hot_encode(targets, num_classes=self.sizes[-1]).astype(np.float32) # one-hot encode targets
 
         for epoch in range(num_iterations):
             start_time = perf_counter() # start time for epoch
@@ -206,7 +206,7 @@ if __name__ == "__main__":
 
 
     sizes = [features.shape[1], 512, 512, 10] # layer size
-    learning_rate = 0.01
+    learning_rate = 0.001
     num_iterations = 256
     batch_size = 64
 
@@ -214,5 +214,5 @@ if __name__ == "__main__":
     nn = NeuralNetwork(sizes) # initialize the neural network
     nn.train(features, targets, learning_rate, num_iterations, batch_size=batch_size) # train the model
     
-    nn.save('model.pkl') # save the model
+    nn.save('model_adam_expanded.pkl') # save the model
 
