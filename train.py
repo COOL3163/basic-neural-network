@@ -61,9 +61,17 @@ class NeuralNetwork:
         for i in range(self.num_layers - 1):
             x = self.sizes[i] 
             y = self.sizes[i + 1] # neurons in next layer
-            self.weights.append(np.random.randn(y, x) * np.sqrt(2 / x)) # Kaiming/He initialization
-            self.biases.append(np.zeros((y, 1))) # all zeros
-            
+            self.weights.append(np.random.randn(y, x).astype(np.float32) * np.sqrt(2 / x)) # Kaiming/He initialization
+            self.biases.append(np.zeros((y, 1), dtype=np.float32)) # all zeros
+
+        # adam optimizer stuff
+        self.m_w = [np.zeros_like(w) for w in self.weights]
+        self.v_w = [np.zeros_like(w) for w in self.weights]
+        self.m_b = [np.zeros_like(b) for b in self.biases]
+        self.v_b = [np.zeros_like(b) for b in self.biases]
+        self.opt_t = 0
+
+
     def forward(self, x):
         """
         Do a forward pass through the network
@@ -114,6 +122,34 @@ class NeuralNetwork:
             idx = l - 1  # weight/bias index for layer l 
             self.weights[idx] -= (learning_rate / size) * nabla_w[idx]
             self.biases[idx]  -= (learning_rate / size) * nabla_b[idx]
+
+        beta1 = 0.9
+        beta2 = 0.999
+        aespsilon = 1e-8
+        self.opt_t += 1
+
+        for idx in range(len(self.weights)): # idx = index for weights/biases
+            average_w = nabla_w[idx] / size
+            average_b = nabla_b[idx] / size
+
+            # update first moment estimate
+            self.m_w[idx] = beta1 * self.m_w[idx] + (1.0 - beta1) * average_w
+            self.m_b[idx] = beta1 * self.m_b[idx] + (1.0 - beta1) * average_b
+
+            # update biased second raw moment estimates
+            self.v_w[idx] = beta2 * self.v_w[idx] + (1.0 - beta2) * (average_w * average_w)
+            self.v_b[idx] = beta2 * self.v_b[idx] + (1.0 - beta2) * (average_b * average_b)
+
+            # compute bias-corrected first and second moments
+            m_hat_w = self.m_w[idx] / (1.0 - beta1 ** self.opt_t)
+            m_hat_b = self.m_b[idx] / (1.0 - beta1 ** self.opt_t)
+            v_hat_w = self.v_w[idx] / (1.0 - beta2 ** self.opt_t)
+            v_hat_b = self.v_b[idx] / (1.0 - beta2 ** self.opt_t)
+
+            # parameter update (Adam rule)
+            self.weights[idx] -= learning_rate * m_hat_w / (np.sqrt(v_hat_w) + aespsilon)
+            self.biases[idx]  -= learning_rate * m_hat_b / (np.sqrt(v_hat_b) + aespsilon)
+            
 
     def train(self, features, targets, learning_rate, num_iterations, batch_size, epsilon=1e-8):
         """
