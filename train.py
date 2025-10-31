@@ -48,7 +48,7 @@ def load_data(path):
     return np.array(X, dtype=np.float32), np.array(y, dtype=np.int32)
 
 class NeuralNetwork:
-    def __init__(self, sizes):
+    def __init__(self, sizes, l2_lambda=1e-4):
         """
         Initialize the neural network with given layer sizes
         """
@@ -64,6 +64,9 @@ class NeuralNetwork:
             self.weights.append(np.random.randn(y, x).astype(np.float32) * np.sqrt(2 / x)) # Kaiming/He initialization
             self.biases.append(np.zeros((y, 1), dtype=np.float32)) # all zeros
 
+        # l2 regularization 
+        self.l2_lambda = l2_lambda
+
         # adam optimizer stuff
         self.m_w = [np.zeros_like(w) for w in self.weights]
         self.v_w = [np.zeros_like(w) for w in self.weights]
@@ -72,7 +75,7 @@ class NeuralNetwork:
         self.opt_t = 0
 
 
-    def forward(self, x):
+    def forward(self, x, scaling_factor=1.5):
         """
         Do a forward pass through the network
         """
@@ -90,8 +93,10 @@ class NeuralNetwork:
         w_out = self.weights[-1]
         b_out = self.biases[-1]
         z_out = np.dot(w_out, self.activations[-1]) + b_out
-        self.z_values.append(z_out)
-        output = softmax(z_out)   # shape (n_classes, batch_size)
+
+        z_scaled = z_out * scaling_factor
+        self.z_values.append(z_scaled)
+        output = softmax(z_scaled)   # shape (n_classes, batch_size)
         self.activations.append(output)
 
         return output
@@ -132,6 +137,8 @@ class NeuralNetwork:
             average_w = nabla_w[idx] / size
             average_b = nabla_b[idx] / size
 
+            average_w += self.l2_lambda * self.weights[idx]  # l2 regularization
+
             # update first moment estimate
             self.m_w[idx] = beta1 * self.m_w[idx] + (1.0 - beta1) * average_w
             self.m_b[idx] = beta1 * self.m_b[idx] + (1.0 - beta1) * average_b
@@ -146,17 +153,24 @@ class NeuralNetwork:
             v_hat_w = self.v_w[idx] / (1.0 - beta2 ** self.opt_t)
             v_hat_b = self.v_b[idx] / (1.0 - beta2 ** self.opt_t)
 
-            # parameter update (Adam rule)
+            # update
             self.weights[idx] -= learning_rate * m_hat_w / (np.sqrt(v_hat_w) + aespsilon)
             self.biases[idx]  -= learning_rate * m_hat_b / (np.sqrt(v_hat_b) + aespsilon)
             
 
-    def train(self, features, targets, learning_rate, num_iterations, batch_size, epsilon=1e-8):
+    def train(self, features, targets, val_features, val_targets, learning_rate, num_iterations, batch_size, patience=10, epsilon=1e-8):
         """
         Train the neural network using mini-batch gradient descent
         """
         num_samples = features.shape[0]
         targets_oh = one_hot_encode(targets, num_classes=self.sizes[-1]).astype(np.float32) # one-hot encode targets
+        val_targets_oh = one_hot_encode(val_targets, num_classes=self.sizes[-1]).astype(np.float32)
+
+        # early stopping variables
+        best_val_loss = float('inf')
+        best_weights = None
+        best_biases = None
+        epochs_without_improvement = 0
 
         for epoch in range(num_iterations):
             start_time = perf_counter() # start time for epoch
@@ -182,9 +196,35 @@ class NeuralNetwork:
                 loss -= np.sum(y_batch.T * np.log(preds)) # cross-entropy loss
 
             loss = loss / num_samples # average loss
+            l2_penalty = sum(np.sum(w ** 2) for w in self.weights)
+            loss += self.l2_lambda * l2_penalty
+            
+            # calculate validation loss
+            val_preds = self.forward(val_features)
+            val_preds = np.clip(val_preds, epsilon, 1 - epsilon)
+            val_loss = -np.sum(val_targets_oh.T * np.log(val_preds + epsilon)) / val_features.shape[0]
+
+            # check for early stopping
+            if val_loss < best_val_loss:
+                best_val_loss = val_loss
+                best_weights = [w.copy() for w in self.weights]
+                best_biases = [b.copy() for b in self.biases]
+                epochs_without_improvement = 0
+            else:
+                epochs_without_improvement += 1
+
+            # stop if no improvement for {patience} epochs
+            if epochs_without_improvement >= patience:  
+                print(f"early stop at epoch {epoch}, best val loss: {best_val_loss:.4f}")
+                break
 
             # debug info
-            print(f"Epoch {epoch}: Loss = {loss:.4f}, Time = {perf_counter() - start_time:.2f}s")
+            print(f"Epoch {epoch}: Loss = {loss:.4f}, Val Loss = {val_loss:.4f}, Time = {perf_counter() - start_time:.2f}s")
+
+        # restore best weights and biases
+        if best_weights is not None and best_biases is not None:
+            self.weights = best_weights
+            self.biases = best_biases
 
     def save(self, path):
         """
@@ -203,7 +243,9 @@ if __name__ == "__main__":
     print('loading data')
     features, targets = load_data("data/mnist_train.csv") # load training data
     print(f"laded {features.shape[0]} samples with {features.shape[1]} features each.")
-
+    print('loading val data')
+    val_features, val_targets = load_data("data/mnist_val.csv") 
+    print(f"laded {val_features.shape[0]} val samples with {val_features.shape[1]} features each.")
 
     sizes = [features.shape[1], 512, 512, 10] # layer size
     learning_rate = 0.001
@@ -212,7 +254,7 @@ if __name__ == "__main__":
 
     print('training model')
     nn = NeuralNetwork(sizes) # initialize the neural network
-    nn.train(features, targets, learning_rate, num_iterations, batch_size=batch_size) # train the model
+    nn.train(features, targets, val_features, val_targets, learning_rate, num_iterations, batch_size=batch_size) # train the model
     
     nn.save('model_adam_expanded.pkl') # save the model
 

@@ -3,7 +3,7 @@ import numpy as np
 import pickle
 from train import NeuralNetwork, load_data, one_hot_encode, softmax, relu, relu_derivative
 
-def predict(model, x):
+def predict(model, x, scaling_factor=1.5):
     """
     Do a prediction for a single sample
     """
@@ -12,9 +12,10 @@ def predict(model, x):
         z = np.dot(w, activation) + b
         activation = relu(z)
 
-    # output layer
+    # output layer with scaling
     z = np.dot(model['weights'][-1], activation) + model['biases'][-1]
-    probs = softmax(z)
+    z_scaled = z * scaling_factor 
+    probs = softmax(z_scaled)
     return np.argmax(probs)
 
 def predict_batch(model, x):

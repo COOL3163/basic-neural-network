@@ -20,9 +20,13 @@ def random_shift_image(image, max_shift=2):
     return shifted_image.flatten()
     
 
-# Split: train 60k, test 10k
-X_train = X_bin[:60000]
-y_train = y[:60000]
+# Split: train 50k, validation 10k, test 10k
+X_train = X_bin[:50000]
+y_train = y[:50000]
+X_val = X_bin[50000:60000]
+y_val = y[50000:60000]
+X_test = X_bin[60000:70000]
+y_test = y[60000:70000]
 
 print("start shifting")
 X_shifted = []
@@ -40,14 +44,15 @@ y_train = np.array(y_shifted)
 print("done shifting")
 
 
-X_test = X_bin[60000:70000]
-y_test = y[60000:70000]
-
-
 # each row = [label, pixel0, pixel1, ...]
 with open("data/mnist_train.csv", "w", newline='') as f_train:
     writer = csv.writer(f_train)
     for label, features in zip(y_train, X_train):
+        writer.writerow([int(label)] + list(features))
+
+with open("data/mnist_val.csv", "w", newline='') as f_val:
+    writer = csv.writer(f_val)
+    for label, features in zip(y_val, X_val):
         writer.writerow([int(label)] + list(features))
 
 with open("data/mnist_test.csv", "w", newline='') as f_test:
@@ -57,4 +62,5 @@ with open("data/mnist_test.csv", "w", newline='') as f_test:
 
 print("Done!")
 print(f"Training set: {len(X_train)} samples")
+print(f"Validation set: {len(X_val)} samples")
 print(f"Test set: {len(X_test)} samples")
