@@ -22,7 +22,7 @@ if __name__ == "__main__":
     X_test, y_test = load_data("data/mnist_test.csv")
 
     # load trained model
-    with open("model.pkl", "rb") as f:
+    with open("model_adam_expanded.pkl", "rb") as f:
         model = pickle.load(f)
 
     # make predictions
