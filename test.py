@@ -3,7 +3,7 @@ import numpy as np
 import pickle
 from train import NeuralNetwork, load_data, one_hot_encode, softmax, relu, relu_derivative
 
-def predict(model, x, scaling_factor=1.5):
+def predict(model, x, scaling_factor=2.0):
     """
     Do a prediction for a single sample
     """
@@ -18,7 +18,7 @@ def predict(model, x, scaling_factor=1.5):
     probs = softmax(z_scaled)
     return np.argmax(probs)
 
-def predict_batch(model, x):
+def predict_batch(model, x, scaling_factor=1.5):
     """
     predict multiple samples at once
     """
@@ -27,9 +27,10 @@ def predict_batch(model, x):
         z = np.dot(w, activation) + b
         activation = relu(z)
 
-    # output layer
+    # output layer with scaling
     z = np.dot(model['weights'][-1], activation) + model['biases'][-1]
-    probs = softmax(z)
+    z_scaled = z * scaling_factor
+    probs = softmax(z_scaled)
     return np.argmax(probs, axis=0)
 
 
@@ -38,7 +39,7 @@ if __name__ == "__main__":
     X_test, y_test = load_data("data/mnist_test.csv")
 
     # load trained model
-    with open("model_adam_expanded.pkl", "rb") as f:
+    with open("model_final.pkl", "rb") as f:
         model = pickle.load(f)
 
     predictions = predict_batch(model, X_test)

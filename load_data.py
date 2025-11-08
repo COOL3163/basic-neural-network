@@ -2,7 +2,7 @@ import os
 import csv
 import numpy as np
 from sklearn.datasets import fetch_openml
-from scipy.ndimage import shift
+from scipy.ndimage import shift, rotate
 
 # download MNist
 mnist = fetch_openml('mnist_784', version=1)
@@ -18,6 +18,12 @@ def random_shift_image(image, max_shift=2):
     shift_y = np.random.randint(-max_shift, max_shift + 1)
     shifted_image = shift(image, shift=[shift_x, shift_y], mode='constant', cval=0)
     return shifted_image.flatten()
+
+def random_rotate_image(image, angle_range=15):
+    image = image.reshape(28, 28)
+    angle = np.random.uniform(-angle_range, angle_range)
+    rotated_image = rotate(image, angle, reshape=False)
+    return rotated_image.flatten()
     
 
 # Split: train 50k, validation 10k, test 10k
@@ -28,20 +34,24 @@ y_val = y[50000:60000]
 X_test = X_bin[60000:70000]
 y_test = y[60000:70000]
 
-print("start shifting")
-X_shifted = []
-y_shifted = []
-X_shifted.extend(X_train)
-y_shifted.extend(y_train)
-for i in range(4):
+print("start")
+X_augmented = []
+y_augmented = []
+X_augmented.extend(X_train)
+y_augmented.extend(y_train)
+
+for i in range(2):
     for j, (image, label) in enumerate(zip(X_train, y_train)):
         shifted_image = random_shift_image(image)
-        X_shifted.append(shifted_image)
-        y_shifted.append(label)
+        X_augmented.append(shifted_image)
+        y_augmented.append(label)
+        rotated_image = random_rotate_image(image)
+        X_augmented.append(rotated_image)
+        y_augmented.append(label)
 
-X_train = np.array(X_shifted)
-y_train = np.array(y_shifted)
-print("done shifting")
+X_train = np.array(X_augmented)
+y_train = np.array(y_augmented)
+print("done")
 
 
 # each row = [label, pixel0, pixel1, ...]
