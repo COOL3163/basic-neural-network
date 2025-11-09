@@ -5,15 +5,15 @@ import numpy as np
 from scipy.ndimage import shift
 from train import NeuralNetwork, load_data, one_hot_encode, softmax, relu, relu_derivative
 
-def center_digit(image):
+def center_digit(matrix):
     """
     Center a digit within a 28*28 grid.
     """
 
-    rows = np.any(image, axis=1)
-    cols = np.any(image, axis=0)
+    rows = np.any(matrix, axis=1)
+    cols = np.any(matrix, axis=0)
     if not rows.any() or not cols.any(): # empty 
-        return image
+        return matrix
     row_min, row_max = np.where(rows)[0][[0, -1]]
     col_min, col_max = np.where(cols)[0][[0, -1]]
 
@@ -25,16 +25,16 @@ def center_digit(image):
     row_shift = 14 - row_center
     col_shift = 14 - col_center
 
-    # shift image
-    centered_image = shift(image, shift=(row_shift, col_shift), mode='constant', cval=0)
-    return centered_image
+    # shift matrix
+    centered_matrix = shift(matrix, shift=(row_shift, col_shift), mode='constant', cval=0)
+    return centered_matrix
 
-def process(image):
+def process(matrix):
     """
-    Process the input image for digit recognition.
+    Process the input matrix for digit recognition.
     """
     # Center the digit
-    centered = center_digit(image)
+    centered = center_digit(matrix)
 
     # Flatten the image
     flattened = centered.flatten()
@@ -77,6 +77,28 @@ class PredictCanvas:
         # Confidence display
         self.confidence_label = tk.Label(master, text="", font=("Arial", 12))
         self.confidence_label.pack(pady=5)
+
+        # Initialize drawing matrix
+        self.matrix = np.zeros((self.GRID_SIZE, self.GRID_SIZE))
+
+        # Binds
+        self.canvas.bind("<B1-Motion>", self.paint)  # Mouse drag
+        self.canvas.bind("<Button-1>", self.paint)   # Mouse click
+
+    def paint(self, event):
+        x, y = event.x // self.CELL_SIZE, event.y // self.CELL_SIZE
+
+        for dy in range(2):
+            for dx in range(2):
+                nx, ny = x + dx, y + dy
+                if 0 <= nx < self.GRID_SIZE and 0 <= ny < self.GRID_SIZE:
+                    self.matrix[ny][nx] = 1.0
+                    self.canvas.create_rectangle(
+                        nx*self.CELL_SIZE, ny*self.CELL_SIZE,
+                        (nx+1)*self.CELL_SIZE, (ny+1)*self.CELL_SIZE,
+                        fill='black', outline='black'
+                    )
+
 
 
 if __name__ == "__main__":
