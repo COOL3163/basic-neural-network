@@ -84,8 +84,29 @@ class PredictCanvas:
         # Binds
         self.canvas.bind("<B1-Motion>", self.paint)  # Mouse drag
         self.canvas.bind("<Button-1>", self.paint)   # Mouse click
+        self.master.bind("<Return>", self.predict_digit)  # Predict
+        self.master.bind("<BackSpace>", self.clear_canvas)  # Clear
+
+        # Autoclear flag
+        self.should_clear = False
+
+        # Load trained model
+        with open("model_final.pkl", "rb") as f:
+            self.model = pickle.load(f)
+        self.sizes = self.model['sizes']
+        self.weights = [np.array(w) for w in self.model['weights']]
+        self.biases = [np.array(b).reshape(-1, 1) for b in self.model["biases"]]
+
 
     def paint(self, event):
+        """
+        Paint a 2x2 block on the canvas and update the matrix
+        """
+        # Clear board after prediction
+        if self.should_clear:
+            self.clear_canvas()
+            self.should_clear = False
+
         x, y = event.x // self.CELL_SIZE, event.y // self.CELL_SIZE
 
         for dy in range(2):
@@ -98,6 +119,49 @@ class PredictCanvas:
                         (nx+1)*self.CELL_SIZE, (ny+1)*self.CELL_SIZE,
                         fill='black', outline='black'
                     )
+
+    def clear_canvas(self):
+        """
+        Clear the canvas and reset the matrix
+        """
+        self.canvas.delete("all")
+        self.prediction_canvas.delete("all")
+        self.prediction_canvas.create_text(self.GRID_SIZE*self.CELL_SIZE//2, self.GRID_SIZE*self.CELL_SIZE//2,
+                                         text="Predicted digit\nwill appear here",
+                                         font=("Arial", 16), justify=tk.CENTER)
+        self.confidence_label.config(text="")
+        self.matrix = np.zeros((self.GRID_SIZE, self.GRID_SIZE))
+
+    def predict_digit(self, event=None):
+        """
+        Predict the digit drawn on the canvas
+        """
+        # preprocess the matrix
+        preprocessed = process(self.matrix)
+        features = preprocessed.reshape(-1, 1)
+
+        # forward pass
+        activation = features
+        for w, b in zip(self.weights[:-1], self.biases[:-1]):
+            z = np.dot(w, activation) + b
+            activation = relu(z)
+        
+        # output layer with scaling
+        z = np.dot(self.weights[-1], activation) + self.biases[-1]
+        z_scaled = z * 2.0
+        probs = softmax(z_scaled.flatten())
+
+        digit = np.argmax(probs)
+        confidence = probs[digit]
+
+        # Dispay
+        self.prediction_canvas.delete("all")
+        self.prediction_canvas.create_text(self.GRID_SIZE*self.CELL_SIZE//2, self.GRID_SIZE*self.CELL_SIZE//2, 
+                                         text=str(digit), 
+                                         font=("Arial", 120, "bold"), fill="blue")
+        self.confidence_label.config(text=f"Confidence: {confidence*100:.2f}%")
+        self.should_clear = True
+
 
 
 
